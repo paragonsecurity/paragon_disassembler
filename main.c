@@ -26,11 +26,33 @@
 #define JAUNE 0xfbff00
 #define ROUGE 0xff0000
 
+// ==================================================================================================
+
+typedef struct _option{
+	int elf_header;
+	int program_header;
+	int section_header;
+}option;
+
+
+// ==================================================================================================
+
 off_t search_section(const char *section, Elf64_Shdr *buffer_mdata_sh[], Elf64_Ehdr *ptr, int *i_sec);
 
-int disass_sections(Elf64_Shdr *buffer_mdata_sh_p, char *base_ptr);
+int disass_sections(Elf64_Shdr *buffer_mdata_sh_p, char *base_ptr, char *sh_name_buffer);
+
+int  check_argvs(int argc, char **argv, option *opt);
+
+// ==================================================================================================
 
 int main(int argc, char *argv[]){
+
+	option *opt;
+
+	int check = check_argvs(argc, argv, opt);
+
+	if (check != 0)
+		exit(EXIT_FAILURE);
 
 	char argv2_buffer[LEN];
 	strncpy(argv2_buffer, argv[2], strlen(argv[2]));
@@ -43,14 +65,8 @@ int main(int argc, char *argv[]){
 	Elf64_Half len_sht = 0;
 	Elf64_Phdr *ph_ptr = NULL;
 
-
-	if (argc != 3){
-		printf("Usage : %s <elf> <section>\n", argv[0]);
-		exit(-1);
-	}
-
 	fd = open(argv[1], O_RDONLY);
-	
+
 
 	if (fstat(fd, &stat_file) != 0){
 		printf("[ERROR] fstat failed\n");
@@ -65,8 +81,12 @@ int main(int argc, char *argv[]){
 	}
 
 	Elf64_Ehdr *buffer_mdata_ehdr[20];
+	
 
-	get_executable_header(file_ptr, buffer_mdata_ehdr);
+	if (opt->elf_header == TRUE)
+	{
+		get_executable_header(file_ptr, buffer_mdata_ehdr);
+	}
 
 	Elf64_Ehdr *ptr = (Elf64_Ehdr*)file_ptr;
 
@@ -112,577 +132,598 @@ int main(int argc, char *argv[]){
 
 	// typedef uint32_t Elf32_Word;
 
-	printf("\n");
-	printf("Programm header : \n");
-	printf("\n");
-
 	size_t number_of_sections = ptr->e_phnum;
 
 	Elf64_Phdr *buffer_mdata_ph[number_of_sections];
 
 	Elf64_Ehdr *ptr_2 = (Elf64_Ehdr *)file_ptr;
 
-	for (size_t i = 0; i < ptr->e_phnum; i++)
+	if (opt->program_header == 1)
 	{
-		// (char *) buffer_mdata_ph[i] = (Elf64_Phdr *)((char *)ptr + (ptr_2->e_phoff + ptr_2->e_phentsize * i));
-
-		buffer_mdata_ph[i]  = (Elf64_Phdr *) ((char *)ptr + (ptr_2->e_phoff + ptr_2->e_phentsize * i));
-		
-		// buffer_mdata_ph[i] = (Elf64_Ehdr *)ph_ptr_tmp;
-
-		Elf64_Phdr *ph_ptr_tmp = buffer_mdata_ph[i];
-
-		uint32_t type = ph_ptr_tmp->p_type;
-
-		// ======================================
-
-		switch (buffer_mdata_ph[i]->p_type)
-		{
-		case PT_NULL:
-			printf("\tPT_NULL");
-			break;
-
-		case PT_LOAD:
-			printf("\tPT_LOAD");
-			break;
-
-		case PT_DYNAMIC:
-			printf("\tPT_DYNAMIC");
-			break;
-
-		case PT_INTERP:
-			printf("\tPT_INTERP");
-			break;
-
-		case PT_NOTE:
-			printf("\tPT_NOTE");
-			break;
-
-		case PT_SHLIB:
-			printf("\tPT_SHLIB");
-			break;
-
-		case PT_PHDR:
-			printf("\tPT_PHDR");
-			break;
-
-		case PT_TLS:
-			printf("\tPT_TLS");
-			break;
-
-		case PT_NUM:
-			printf("\tPT_NUM");
-			break;
-
-		case PT_LOOS:
-			printf("\tPT_LOOS");
-			break;
-
-		case PT_GNU_EH_FRAME:
-			printf("\tPT_GNU_EH_FRAME");
-			break;
-
-		case PT_GNU_STACK:
-			printf("\tPT_GNU_STACK");
-			break;
-
-		case PT_GNU_RELRO:
-			printf("\tPT_GNU_RELRO");
-			break;
-
-		case PT_LOSUNW:
-			printf("\tPT_LOSUNW");
-			break;
-
-		case PT_HISUNW:
-			printf("\tPT_HISUNW");
-			break;
-		
-		case PT_LOPROC:
-			printf("\tPT_LOPROC");
-			break;
-
-		case PT_HIPROC:
-			printf("\tPT_HIPROC");
-			break;
-
-		default:
-			break;
-		}
-
-		printf(" at 0x%lx ( 0x%lx p_addr ) with ", ph_ptr_tmp->p_vaddr, ph_ptr_tmp->p_paddr);
-
-		printf ("%c%c%c ",
-		(buffer_mdata_ph[i]->p_flags & PF_R ? 'R' : ' '),
-		(buffer_mdata_ph[i]->p_flags & PF_W ? 'W' : ' '),
-		(buffer_mdata_ph[i]->p_flags & PF_X ? 'E' : ' '));
-
-		printf("flags\n");
 		printf("\n");
+		printf("Programm header : \n");
+		printf("\n");
+
+		for (size_t i = 0; i < ptr->e_phnum; i++)
+		{
+			// (char *) buffer_mdata_ph[i] = (Elf64_Phdr *)((char *)ptr + (ptr_2->e_phoff + ptr_2->e_phentsize * i));
+
+			buffer_mdata_ph[i]  = (Elf64_Phdr *) ((char *)ptr + (ptr_2->e_phoff + ptr_2->e_phentsize * i));
+			
+			// buffer_mdata_ph[i] = (Elf64_Ehdr *)ph_ptr_tmp;
+
+			Elf64_Phdr *ph_ptr_tmp = buffer_mdata_ph[i];
+
+			uint32_t type = ph_ptr_tmp->p_type;
+
+			// ======================================
+
+			switch (buffer_mdata_ph[i]->p_type)
+			{
+			case PT_NULL:
+				printf("\tPT_NULL");
+				break;
+
+			case PT_LOAD:
+				printf("\tPT_LOAD");
+				break;
+
+			case PT_DYNAMIC:
+				printf("\tPT_DYNAMIC");
+				break;
+
+			case PT_INTERP:
+				printf("\tPT_INTERP");
+				break;
+
+			case PT_NOTE:
+				printf("\tPT_NOTE");
+				break;
+
+			case PT_SHLIB:
+				printf("\tPT_SHLIB");
+				break;
+
+			case PT_PHDR:
+				printf("\tPT_PHDR");
+				break;
+
+			case PT_TLS:
+				printf("\tPT_TLS");
+				break;
+
+			case PT_NUM:
+				printf("\tPT_NUM");
+				break;
+
+			case PT_LOOS:
+				printf("\tPT_LOOS");
+				break;
+
+			case PT_GNU_EH_FRAME:
+				printf("\tPT_GNU_EH_FRAME");
+				break;
+
+			case PT_GNU_STACK:
+				printf("\tPT_GNU_STACK");
+				break;
+
+			case PT_GNU_RELRO:
+				printf("\tPT_GNU_RELRO");
+				break;
+
+			case PT_LOSUNW:
+				printf("\tPT_LOSUNW");
+				break;
+
+			case PT_HISUNW:
+				printf("\tPT_HISUNW");
+				break;
+			
+			case PT_LOPROC:
+				printf("\tPT_LOPROC");
+				break;
+
+			case PT_HIPROC:
+				printf("\tPT_HIPROC");
+				break;
+
+			default:
+				break;
+			}
+
+			printf(" at 0x%lx ( 0x%lx p_addr ) with ", ph_ptr_tmp->p_vaddr, ph_ptr_tmp->p_paddr);
+
+			printf ("%c%c%c ",
+			(buffer_mdata_ph[i]->p_flags & PF_R ? 'R' : ' '),
+			(buffer_mdata_ph[i]->p_flags & PF_W ? 'W' : ' '),
+			(buffer_mdata_ph[i]->p_flags & PF_X ? 'E' : ' '));
+
+			printf("flags\n");
+			printf("\n");
+		}
 	}
-	
 	// ==================================================================================================================================================
 	// ==================================================================================================================================================
 
 	// SECTIONS HEADERS pour chaque section
+	
 
-	printf("Section Header : \n");
-	printf("\n");
+		Elf64_Shdr *buffer_mdata_sh[ptr->e_shnum]; // tableau de structure contenant autant de ptr que de sections headers
+		Elf64_Shdr *shstrtab_header;
 
-	Elf64_Shdr *buffer_mdata_sh[ptr->e_shnum]; // tableau de structure contenant autant de ptr que de sections headers
-	Elf64_Shdr *shstrtab_header;
+		char *sh_name_buffer[ptr->e_shnum];
 
-	char *sh_name_buffer[ptr->e_shnum];
+		shstrtab_header = (Elf64_Shdr *) ((char *)ptr + (ptr_2->e_shoff + ptr_2->e_shentsize * ptr_2->e_shstrndx));
 
-	shstrtab_header = (Elf64_Shdr *) ((char *)ptr + (ptr_2->e_shoff + ptr_2->e_shentsize * ptr_2->e_shstrndx));
+		char *shstrndx = (char *)file_ptr + shstrtab_header->sh_offset;
 
-	char *shstrndx = (char *)file_ptr + shstrtab_header->sh_offset;
+		for (size_t i = 0; i < ptr->e_shnum; i++){
 
-	for (size_t i = 0; i < ptr->e_shnum; i++){
+			buffer_mdata_sh[i]  = (Elf64_Shdr *) ((char *)ptr + (ptr_2->e_shoff + ptr_2->e_shentsize * i));
 
-		buffer_mdata_sh[i]  = (Elf64_Shdr *) ((char *)ptr + (ptr_2->e_shoff + ptr_2->e_shentsize * i));
-
-		sh_name_buffer[i] = (char *)shstrndx + buffer_mdata_sh[i]->sh_name;
-
-		printf("\tSh_name : \t%s", sh_name_buffer[i]);
-
-		switch (buffer_mdata_sh[i]->sh_type)
-		{
-		case SHT_NULL:
-			printf("\t\t\t\t(SHT_NULL) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-		
-		case SHT_PROGBITS:
-			printf("\t\t\t\t(SHT_PROGBITS) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_SYMTAB:
-			printf("\t\t\t\t(SHT_SYMTAB) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_STRTAB:
-			printf("\t\t\t\t(SHT_STRTAB)\n");
-			break;
-
-		case SHT_RELA:
-			printf("\t\t\t(SHT_RELA) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_HASH:
-			printf("\t\t\t\t(SHT_HASH) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_DYNAMIC:
-			printf("\t\t\t(SHT_DYNAMIC) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_NOTE:
-			printf("\t\t\t(SHT_NOTE) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_NOBITS:
-			printf("\t\t\t\t(SHT_NOBITS) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_REL:
-			printf("\t\t\t\t((SHT_REL) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_SHLIB:
-			printf("\t\t\t\t(SHT_SHLIB) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_DYNSYM:
-			printf("\t\t\t\t(SHT_DYNSYM) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_INIT_ARRAY:
-			printf("\t\t\t(SHT_INIT_ARRAY) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_FINI_ARRAY:
-			printf("\t\t\t(SHT_FINI_ARRAY) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_PREINIT_ARRAY:
-			printf("\t\t\t\t(SHT_PREINIT_ARRAY) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_GROUP:
-			printf("\t\t\t\t(SHT_GROUP) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_SYMTAB_SHNDX:
-			printf("\t\t\t\t(SHT_SYMTAB_SHNDX) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_NUM:
-			printf("\t\t\t\t(SHT_NUM) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_LOOS:
-			printf("\t\t\t\t(SHT_LOOS) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-		case SHT_GNU_ATTRIBUTES:
-			printf("\t\t\t\t(SHT_GNU_ATTRIBUTES) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_GNU_HASH:
-			printf("\t\t\t(SHT_GNU_HASH) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_GNU_LIBLIST:
-			printf("\t\t\t\t(SHT_GNU_LIBLIST) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_CHECKSUM:
-			printf("\t\t\t\t(SHT_CHECKSUM) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_LOSUNW:
-			printf("\t\t\t\t(SHT_LOSUNW) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_SUNW_COMDAT:
-			printf("\t\t\t\t(SHT_SUNW_COMDAT) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_HISUNW:
-			printf("\t\t\t(SHT_HISUNW) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_LOPROC:
-			printf("\t\t\t\t(SHT_LOPROC) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_HIPROC:
-			printf("\t\t\t\t(SHT_HIPROC) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_LOUSER:
-			printf("\t\t\t\t(SHT_LOUSER) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		case SHT_HIUSER:
-			printf("\t\t\t\t(SHT_HIUSER) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
-
-		default:
-			printf("\t\t\t([NOT RECOGNIZED]) with %c %c %c %c %c %c %c %c %c %c flags\n", 
-			(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
-			(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
-			break;
+			sh_name_buffer[i] = (char *)shstrndx + buffer_mdata_sh[i]->sh_name;
 		}
 
-		printf("\tVirtual Address : 0x%lx\n", buffer_mdata_sh[i]->sh_addr);
+	if (opt->section_header == 1)
+	{
+	
+		printf("Section Header : \n");
+		printf("\n");
 
+		for (size_t i = 0; i < ptr->e_shnum; i++){
+
+			printf("\tSh_name : \t%s", sh_name_buffer[i]);
+
+			switch (buffer_mdata_sh[i]->sh_type)
+			{
+			case SHT_NULL:
+				printf("\t\t\t\t(SHT_NULL) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+			
+			case SHT_PROGBITS:
+				printf("\t\t\t\t(SHT_PROGBITS) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_SYMTAB:
+				printf("\t\t\t\t(SHT_SYMTAB) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_STRTAB:
+				printf("\t\t\t\t(SHT_STRTAB)\n");
+				break;
+
+			case SHT_RELA:
+				printf("\t\t\t(SHT_RELA) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_HASH:
+				printf("\t\t\t\t(SHT_HASH) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_DYNAMIC:
+				printf("\t\t\t(SHT_DYNAMIC) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_NOTE:
+				printf("\t\t\t(SHT_NOTE) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_NOBITS:
+				printf("\t\t\t\t(SHT_NOBITS) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_REL:
+				printf("\t\t\t\t((SHT_REL) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_SHLIB:
+				printf("\t\t\t\t(SHT_SHLIB) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_DYNSYM:
+				printf("\t\t\t\t(SHT_DYNSYM) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_INIT_ARRAY:
+				printf("\t\t\t(SHT_INIT_ARRAY) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_FINI_ARRAY:
+				printf("\t\t\t(SHT_FINI_ARRAY) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_PREINIT_ARRAY:
+				printf("\t\t\t\t(SHT_PREINIT_ARRAY) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_GROUP:
+				printf("\t\t\t\t(SHT_GROUP) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_SYMTAB_SHNDX:
+				printf("\t\t\t\t(SHT_SYMTAB_SHNDX) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_NUM:
+				printf("\t\t\t\t(SHT_NUM) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_LOOS:
+				printf("\t\t\t\t(SHT_LOOS) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+			case SHT_GNU_ATTRIBUTES:
+				printf("\t\t\t\t(SHT_GNU_ATTRIBUTES) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_GNU_HASH:
+				printf("\t\t\t(SHT_GNU_HASH) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_GNU_LIBLIST:
+				printf("\t\t\t\t(SHT_GNU_LIBLIST) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_CHECKSUM:
+				printf("\t\t\t\t(SHT_CHECKSUM) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_LOSUNW:
+				printf("\t\t\t\t(SHT_LOSUNW) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_SUNW_COMDAT:
+				printf("\t\t\t\t(SHT_SUNW_COMDAT) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_HISUNW:
+				printf("\t\t\t(SHT_HISUNW) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_LOPROC:
+				printf("\t\t\t\t(SHT_LOPROC) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_HIPROC:
+				printf("\t\t\t\t(SHT_HIPROC) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_LOUSER:
+				printf("\t\t\t\t(SHT_LOUSER) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			case SHT_HIUSER:
+				printf("\t\t\t\t(SHT_HIUSER) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+
+			default:
+				printf("\t\t\t([NOT RECOGNIZED]) with %c %c %c %c %c %c %c %c %c %c flags\n", 
+				(buffer_mdata_sh[i]->sh_flags & SHF_WRITE ? 'W' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_ALLOC ? 'A' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'E' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_MERGE ? 'M' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_STRINGS ? 'S' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_INFO_LINK ? 'L' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_GROUP ? 'G' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_TLS ? 'T' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_COMPRESSED ? 'C' : ' '),
+				(buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR ? 'L' : ' '));
+				break;
+			}
+
+			printf("\tVirtual Address : 0x%lx\n", buffer_mdata_sh[i]->sh_addr);
+
+		}
 	}
 
+	if (strcmp(argv[2], "-a") == 0){
+
+		for (size_t i = 0; i < ptr->e_shnum; i++)
+		{
+			int success = disass_sections(buffer_mdata_sh[i], file_ptr, sh_name_buffer[i]);
+		}
+	
+	}
+
+	else if (strcmp(argv[2], "-s") == 0)
+	{
 		int i_sec;
 
-		off_t res = search_section(argv[2], buffer_mdata_sh, ptr, &i_sec);
+		off_t res = search_section(argv[3], buffer_mdata_sh, ptr, &i_sec);
 
 		if (res == -1){
 			printf("\n");
-			printf("%s not found\n", argv[2]);
+			printf("%s not found\n", argv[3]);
 		}
 		else
 		{
@@ -691,10 +732,10 @@ int main(int argc, char *argv[]){
 			printf("Section at 0x%lx (%s)\n", res, secname);
 		}
 
-		
-		int success = disass_sections(buffer_mdata_sh[i_sec], file_ptr);
-	
+		int success = disass_sections(buffer_mdata_sh[i_sec], file_ptr, sh_name_buffer[i_sec]);
 
+	}
+	
 	if (munmap(file_ptr, stat_file.st_size) != 0){
 		printf("[ERROR] munmap failed\n");
 		exit(-1);
@@ -707,7 +748,8 @@ int main(int argc, char *argv[]){
 
 // ===========================================================================================================
 
-off_t search_section(const char *section, Elf64_Shdr *buffer_mdata_sh[], Elf64_Ehdr *ptr, int *i_sec){
+	off_t search_section(const char *section, Elf64_Shdr *buffer_mdata_sh[], Elf64_Ehdr *ptr, int *i_sec){
+	
 	off_t offset = 0;
 	Elf64_Shdr *shstrtab_header;
 
@@ -738,8 +780,8 @@ off_t search_section(const char *section, Elf64_Shdr *buffer_mdata_sh[], Elf64_E
 
 // ===========================================================================================================
 
-int disass_sections(Elf64_Shdr *buffer_mdata_sh_p, char *base_ptr){
-
+int disass_sections(Elf64_Shdr *buffer_mdata_sh_p, char *base_ptr, char *sh_name_buffer){
+	
 	char *buffer = (unsigned char*)((void*)base_ptr + buffer_mdata_sh_p->sh_offset);
 
 	csh handle;
@@ -749,33 +791,129 @@ int disass_sections(Elf64_Shdr *buffer_mdata_sh_p, char *base_ptr){
 	if (cs_open(CS_ARCH_X86, CS_MODE_64, &handle) != CS_ERR_OK)
 		return -1;
 
+	cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
+
 	count = cs_disasm(handle, buffer, buffer_mdata_sh_p->sh_size, buffer_mdata_sh_p->sh_addr, 0, &insn);
 
 	if (count <= 0){
 		return -1;
 	}
 
+	printf("\n");
 	printf("%ld instructions have been disassembled\n", count);
 	printf("\n");
+
+	printf("Disassembling %s\n", sh_name_buffer);
+	printf("\n");
+
+	cs_detail *detail;
 
 	for (size_t i = 0; i < count; i++)
 	{
 		printf("\033[35m"); // rose / violet
-		printf("[%d bytes]", insn[i].size);
+		printf("\t[%d bytes]", insn[i].size);
 
 		printf("\033[34m"); // bleu
 		printf(" 0x%ld ", insn[i].address);
 
+		for (size_t j = 0; j < insn[i].size; j++)
+		{
+			printf("\033[33m");
+			printf("%x ", insn[i].bytes[j]);
+		}
+		
 		printf("\033[37m");
 		printf("-> ");
 
 		printf("\033[32m");
 		printf("%s %s\n", insn[i].mnemonic, insn[i].op_str);
+
+		detail = insn[i].detail;
+
+		if (detail->regs_read_count > 0)
+		{
+			for (size_t n = 0; n < detail->regs_read_count; n++)
+			{
+				printf("\033[37m");
+				printf("\t\t -> %s READEN\n", cs_reg_name(handle, detail->regs_read[n]));
+			}
+			
+		}
+		
+		if (detail->regs_write_count > 0)
+		{
+			for (size_t n = 0; n < detail->regs_write_count; n++)
+			{
+				printf("\033[00m");
+				printf("\t\t\t -> %s WRITTEN\n", cs_reg_name(handle, detail->regs_write[n]));
+			}
+		}
+		
+
 	}
-	
 	
 
 	return 0;
+}
+
+// ===========================================================================================================
+
+int check_argvs(int argc, char **argv, option *opt){
+
+	if (argc < 3)
+	{
+		printf("Usage : <%s> <elf> <option>\n", argv[0]);
+		printf("\t-h for help\n");
+		return 1;
+	}
+	else if (argc == 3 && strcmp(argv[2], "-h") == 0)
+	{
+		printf("Help : \n");
+		printf("\t-a  ->  Print all the informations on a binary\n");
+		printf("\t-h  ->  Print this help\n");
+		printf("\t-a <section> ->  Print the informations on the section gives in argument\n");
+		printf("\t-e  -> Print the executable header only\n");
+		printf("\t-sh  -> Print the section header only\n");
+		printf("\t-p  -> Print the program header only\n");
+		return 1;
+	}
+	else if (argc == 3 && strcmp(argv[2], "-e") == 0)
+	{
+		opt->elf_header = TRUE;
+		return 0;
+	}
+	else if (argc == 3 && strcmp(argv[2], "-p") == 0)
+	{
+		opt->program_header = 1;
+		return 0;
+	}
+	else if (argc == 3 && strcmp(argv[2], "-sh") == 0)
+	{
+		opt->section_header = 1;
+		return 0;
+	}
+	else if (argc == 3 && strcmp(argv[2], "-a") == 0)
+	{
+		opt->section_header = 1;
+		opt->program_header = 1;
+		opt->elf_header = 1;
+		return 0;
+	}
+	else if (argc == 4 && strcmp(argv[2], "-s") == 0)
+	{
+		return 0;
+	}
+	else if (argc > 4)
+	{
+		return 1;
+	}
+	
+	else
+	{
+		printf("Usage : <%s> <elf> <option>\n", argv[0]);
+		printf("\t-h for help\n");
+		return 1;
+	}
 }
 
 // ===========================================================================================================
