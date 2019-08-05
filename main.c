@@ -20,6 +20,11 @@
 #define TRUE 0
 #define FALSE 1
 #define LEN 50
+#define ROSE 0xff00f0
+#define BLEU 0x0008ff
+#define VERT 0x23ff00
+#define JAUNE 0xfbff00
+#define ROUGE 0xff0000
 
 off_t search_section(const char *section, Elf64_Shdr *buffer_mdata_sh[], Elf64_Ehdr *ptr, int *i_sec);
 
@@ -755,7 +760,17 @@ int disass_sections(Elf64_Shdr *buffer_mdata_sh_p, char *base_ptr){
 
 	for (size_t i = 0; i < count; i++)
 	{
-		printf("[%d bytes] 0x%ld -> %s %s\n", insn[i].size, insn[i].address, insn[i].mnemonic, insn[i].op_str);
+		printf("\033[35m"); // rose / violet
+		printf("[%d bytes]", insn[i].size);
+
+		printf("\033[34m"); // bleu
+		printf(" 0x%ld ", insn[i].address);
+
+		printf("\033[37m");
+		printf("-> ");
+
+		printf("\033[32m");
+		printf("%s %s\n", insn[i].mnemonic, insn[i].op_str);
 	}
 	
 	
