@@ -27,3 +27,15 @@ Help :
         -sh  -> Print the section header only
         -p  -> Print the program header only
  ```
+
+# Contact Us
+
+You can join our project :
+
+```
+https://discord.gg/ASdDDAt
+```
+
+Or on my YouTube Channel : 
+
+https://www.youtube.com/channel/UCMLdzIcHxhrDkgyw9IxgOwQ/videos?view_as=subscriber
