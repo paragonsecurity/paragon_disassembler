@@ -12,6 +12,10 @@ You can choose the section that you want to disassemble :
 
 ```Usage : ./main <elf> <section> <option>```
 
+It's looks like that : 
+
+![](pretça.gif)
+
 # Help
 
 ```
