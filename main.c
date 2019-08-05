@@ -1,3 +1,9 @@
+
+/*
+Coded by nasm ( https://github.com/feanorlecodeur )
+*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
