@@ -1,4 +1,4 @@
-# paragon_disassembler
+# Paragon Disassembler
 
 Just a simple binary analysis tool
 
