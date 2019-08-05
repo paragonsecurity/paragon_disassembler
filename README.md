@@ -14,7 +14,8 @@ You can choose the section that you want to disassemble :
 
 # Help
 
-```Help : 
+```
+Help : 
         -a  ->  Print all the informations on a binary
         -h  ->  Print this help
         -a <section> ->  Print the informations on the section gives in argument
