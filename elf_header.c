@@ -12,8 +12,9 @@
 #include <stdarg.h>
 #include <getopt.h>
 
+#include "elf_header.h"
 
-void get_executable_header(char *file_ptr){
+int get_executable_header(char *file_ptr, Elf64_Ehdr *ptr_p[30]){
 
         Elf64_Addr entry_point = 0;
         Elf64_Half len_sht = 0;
@@ -1051,4 +1052,11 @@ void get_executable_header(char *file_ptr){
 
         printf("\tShtrndx : \t\t\t0x%x\n", ptr->e_shstrndx);
 
+        for (size_t i = 0; i < sizeof(Elf64_Ehdr); i++)
+        {
+            ptr_p[i] = (Elf64_Ehdr *) (char *) file_ptr + i;
+        }
+
+        return 0;
+        
     }

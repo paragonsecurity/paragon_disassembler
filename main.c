@@ -1,9 +1,3 @@
-
-/*
-Coded by nasm ( https://github.com/feanorlecodeur )
-*/
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +11,7 @@ Coded by nasm ( https://github.com/feanorlecodeur )
 #include <gelf.h>
 #include <stdarg.h>
 #include <getopt.h>
+#include <ctype.h>
 
 #include <capstone/capstone.h>
 
@@ -38,16 +33,45 @@ typedef struct _option{
 	int elf_header;
 	int program_header;
 	int section_header;
+	int op_codes;
 }option;
 
+typedef struct _arch
+{
+	bool CS_ARM;
+	bool CS_ARM64;
+	bool CS_MIPS;
+	bool CS_X86;
+	bool CS_PPC;         	 // PowerPC architecture
+    bool CS_SPARC;          // Sparc architecture
+    bool CS_SYSZ;          // SystemZ architecture
+    bool CS_XCORE;
+}arch;
+
+typedef struct _bits
+{
+	int e_bits;
+	int r_bits;
+}bits;
+
+typedef struct endianness{
+	bool big_endian;
+	bool little_endian;
+}endianness;
 
 // ==================================================================================================
 
 off_t search_section(const char *section, Elf64_Shdr *buffer_mdata_sh[], Elf64_Ehdr *ptr, int *i_sec);
 
-int disass_sections(Elf64_Shdr *buffer_mdata_sh_p, char *base_ptr, char *sh_name_buffer);
+int disass_sections(Elf64_Shdr *buffer_mdata_sh_p, char *base_ptr, char *sh_name_buffer, option *opt);
 
 int  check_argvs(int argc, char **argv, option *opt);
+
+int pack_text(Elf64_Shdr *buffer_mdata, Elf64_Ehdr *ptr, char *algo);
+
+// int disass_recursive()
+
+int prnt_data(Elf64_Shdr *buffer_mdata_sh_p, char *base_ptr, char *sh_name_buffer, option *opt);
 
 // ==================================================================================================
 
@@ -716,12 +740,22 @@ int main(int argc, char *argv[]){
 
 		for (size_t i = 0; i < ptr->e_shnum; i++)
 		{
-			int success = disass_sections(buffer_mdata_sh[i], file_ptr, sh_name_buffer[i]);
+			int p = buffer_mdata_sh[i]->sh_flags & SHF_EXECINSTR;
+
+			if (!p)
+			{
+				prnt_data(buffer_mdata_sh[i], file_ptr, sh_name_buffer[i], opt);
+			}
+			else
+			{
+				int success = disass_sections(buffer_mdata_sh[i], file_ptr, sh_name_buffer[i], opt);
+			}
+			
 		}
 	
 	}
 
-	else if (strcmp(argv[2], "-s") == 0)
+	else if (strcmp(argv[2], "-s") == 0 || strcmp(argv[2], "-o") == 0 )
 	{
 		int i_sec;
 
@@ -738,7 +772,16 @@ int main(int argc, char *argv[]){
 			printf("Section at 0x%lx (%s)\n", res, secname);
 		}
 
-		int success = disass_sections(buffer_mdata_sh[i_sec], file_ptr, sh_name_buffer[i_sec]);
+		if ((buffer_mdata_sh[i_sec]->sh_flags & SHF_EXECINSTR) == 0){
+			prnt_data(buffer_mdata_sh[i_sec], file_ptr, sh_name_buffer[i_sec], opt);
+		}
+		else
+		{
+			disass_sections(buffer_mdata_sh[i_sec], file_ptr, sh_name_buffer[i_sec], opt);
+
+		}
+		
+		
 
 	}
 	
@@ -786,7 +829,7 @@ int main(int argc, char *argv[]){
 
 // ===========================================================================================================
 
-int disass_sections(Elf64_Shdr *buffer_mdata_sh_p, char *base_ptr, char *sh_name_buffer){
+int disass_sections(Elf64_Shdr *buffer_mdata_sh_p, char *base_ptr, char *sh_name_buffer, option *opt){
 	
 	char *buffer = (unsigned char*)((void*)base_ptr + buffer_mdata_sh_p->sh_offset);
 
@@ -813,27 +856,44 @@ int disass_sections(Elf64_Shdr *buffer_mdata_sh_p, char *base_ptr, char *sh_name
 	printf("\n");
 
 	cs_detail *detail;
+	int largeur=35;
 
 	for (size_t i = 0; i < count; i++)
 	{
 		printf("\033[35m"); // rose / violet
-		printf("\t[%d bytes]", insn[i].size);
+		printf("[%d bytes]", insn[i].size);
 
 		printf("\033[34m"); // bleu
 		printf(" 0x%ld ", insn[i].address);
 
-		for (size_t j = 0; j < insn[i].size; j++)
+		if (opt->op_codes == TRUE)
 		{
-			printf("\033[33m");
-			printf("%x ", insn[i].bytes[j]);
+			for (size_t j = 0; j < insn[i].size; j++)
+			{
+				printf("\033[33m");
+				printf("%02x ", insn[i].bytes[j]);
+			}
+			
+			printf("\033[37m");
+			printf("-> ");
+
+			printf("\033[32m");
+			printf("%*s", largeur - insn[i].size * 3,insn[i].mnemonic);
+			printf(" %s\n", insn[i].op_str);
+		}
+
+		else
+		{
+			printf("\033[37m");
+			printf("-> ");
+
+			printf("\033[32m");
+			printf("\t%s",insn[i].mnemonic);
+			printf(" %s\n", insn[i].op_str);
+
+			
 		}
 		
-		printf("\033[37m");
-		printf("-> ");
-
-		printf("\033[32m");
-		printf("%s %s\n", insn[i].mnemonic, insn[i].op_str);
-
 		detail = insn[i].detail;
 
 		if (detail->regs_read_count > 0)
@@ -841,7 +901,7 @@ int disass_sections(Elf64_Shdr *buffer_mdata_sh_p, char *base_ptr, char *sh_name
 			for (size_t n = 0; n < detail->regs_read_count; n++)
 			{
 				printf("\033[37m");
-				printf("\t\t -> %s READEN\n", cs_reg_name(handle, detail->regs_read[n]));
+				printf("\t -> %s READEN\n", cs_reg_name(handle, detail->regs_read[n]));
 			}
 			
 		}
@@ -851,14 +911,13 @@ int disass_sections(Elf64_Shdr *buffer_mdata_sh_p, char *base_ptr, char *sh_name
 			for (size_t n = 0; n < detail->regs_write_count; n++)
 			{
 				printf("\033[00m");
-				printf("\t\t\t -> %s WRITTEN\n", cs_reg_name(handle, detail->regs_write[n]));
+				printf("\t\t -> %s WRITTEN\n", cs_reg_name(handle, detail->regs_write[n]));
 			}
 		}
 		
 
 	}
 	
-
 	return 0;
 }
 
@@ -877,10 +936,11 @@ int check_argvs(int argc, char **argv, option *opt){
 		printf("Help : \n");
 		printf("\t-a  ->  Print all the informations on a binary\n");
 		printf("\t-h  ->  Print this help\n");
-		printf("\t-a <section> ->  Print the informations on the section gives in argument\n");
 		printf("\t-e  -> Print the executable header only\n");
 		printf("\t-sh  -> Print the section header only\n");
 		printf("\t-p  -> Print the program header only\n");
+		printf("\t-o <section> -> Disassemble a section with opcodes\n");
+		printf("\t-s <section> -> Disassemble a section without opcodes\n");
 		return 1;
 	}
 	else if (argc == 3 && strcmp(argv[2], "-e") == 0)
@@ -900,9 +960,14 @@ int check_argvs(int argc, char **argv, option *opt){
 	}
 	else if (argc == 3 && strcmp(argv[2], "-a") == 0)
 	{
-		opt->section_header = 1;
-		opt->program_header = 1;
-		opt->elf_header = 1;
+		opt->section_header = FALSE;
+		opt->program_header = FALSE;
+		opt->elf_header = TRUE;
+		return 0;
+	}
+	else if (argc == 4 && strcmp(argv[2], "-o") == 0)
+	{
+		opt->op_codes = TRUE;
 		return 0;
 	}
 	else if (argc == 4 && strcmp(argv[2], "-s") == 0)
@@ -920,6 +985,61 @@ int check_argvs(int argc, char **argv, option *opt){
 		printf("\t-h for help\n");
 		return 1;
 	}
+}
+
+// ===========================================================================================================
+
+int pack_text(Elf64_Shdr *buffer_mdata, Elf64_Ehdr *ptr,char *algo);
+
+// ===========================================================================================================
+
+int prnt_data(Elf64_Shdr *buffer_mdata_sh_p, char *base_ptr, char *sh_name_buffer, option *opt){
+
+	char buffer_bytes[buffer_mdata_sh_p->sh_size];
+
+	char *lptr = (unsigned char *) ((char *)base_ptr + buffer_mdata_sh_p->sh_offset);
+
+	printf("Contents of the %s\n", sh_name_buffer);
+
+	for (size_t i = 0; i < buffer_mdata_sh_p->sh_size; i++)
+	{
+		buffer_bytes[i] = lptr[i];
+	}
+	
+	for (size_t j = 0; j < buffer_mdata_sh_p->sh_size; j++)
+	{
+		int t_or_not = 0;
+
+		if (buffer_bytes[j] == '\0' && buffer_bytes[j - 1] == '\0')
+		{
+			printf("\\0");
+			int t_or_not = 1;
+		}
+		else if (buffer_bytes[j] == '\0' && t_or_not != 1)
+		{
+			printf("\\0\n");
+		}
+		else if (__isascii(buffer_bytes[j]))
+		{
+			printf("%c", buffer_bytes[j]);
+		}
+		else if (isblank(buffer_bytes[j]))
+		{
+			printf(" ");
+		}
+		
+		else
+		{
+			printf("%x", buffer_bytes[j]);
+		}
+
+		t_or_not = 0;
+	
+	}
+	
+	printf("\n");
+
+	return 0;
 }
 
 // ===========================================================================================================
