@@ -22,10 +22,11 @@ It's looks like that :
 Help : 
         -a  ->  Print all the informations on a binary
         -h  ->  Print this help
-        -a <section> ->  Print the informations on the section gives in argument
+        -s <section> ->  Print the informations on the section gives in argument
         -e  -> Print the executable header only
         -sh  -> Print the section header only
         -p  -> Print the program header only
+        -o -> Print the informations on the section gives in argument and disassemble her if she is executable with opcodes
  ```
 
 # Contact Us
