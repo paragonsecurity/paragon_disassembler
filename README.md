@@ -27,6 +27,7 @@ Help :
         -sh  -> Print the section header only
         -p  -> Print the program header only
         -o -> Print the informations on the section gives in argument and disassemble her if she is executable with opcodes
+        -t -> Print the disassembly code of the ep section
  ```
 
 # Contact Us
